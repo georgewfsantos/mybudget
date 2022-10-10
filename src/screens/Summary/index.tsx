@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ActivityIndicator } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { addMonths, subMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,8 +13,9 @@ import { VictoryPie } from "victory-native";
 
 import { HistoryCard } from "../../components/HistoryCard";
 import { TransactionCardProps } from "../../components/TransactionCard";
+import { useAuth } from "../../hooks/auth";
 import { categories } from "../../utils/categories";
-import { TRANSACTIONS } from "../../utils/storageKeys";
+import { getUserTransactionsKey } from "../../utils/storageKeys";
 
 import {
   Container,
@@ -27,7 +29,6 @@ import {
   Month,
   LoadingWrapper,
 } from "./styles";
-import { useFocusEffect } from "@react-navigation/native";
 
 type Transaction = TransactionCardProps;
 
@@ -47,6 +48,10 @@ export function Summary() {
 
   const theme = useTheme();
 
+  const { user } = useAuth();
+
+  const USER_TRANSACTIONS = getUserTransactionsKey(user.id);
+
   function handleDateChange(action: "next" | "previous") {
     if (action === "next") {
       const newDate = addMonths(selectedDate, 1);
@@ -59,7 +64,9 @@ export function Summary() {
 
   async function loadHistory() {
     setIsLoading(true);
-    const transactionsFromStorage = await AsyncStorage.getItem(TRANSACTIONS);
+    const transactionsFromStorage = await AsyncStorage.getItem(
+      USER_TRANSACTIONS
+    );
 
     const transactions = transactionsFromStorage
       ? JSON.parse(transactionsFromStorage)

@@ -15,7 +15,8 @@ import { CategorySelect } from "../../components/Form/CategorySelect";
 import ReactHookFormInput from "../../components/Form/ReactHookFormInput";
 import { TransactionTypeButton } from "../../components/Form/TransactionTypeButton";
 import { TransactionType } from "../../components/TransactionCard";
-import { TRANSACTIONS } from "../../utils/storageKeys";
+import { useAuth } from "../../hooks/auth";
+import { getUserTransactionsKey } from "../../utils/storageKeys";
 
 import {
   Container,
@@ -61,6 +62,10 @@ export function Register() {
 
   const navigation = useNavigation();
 
+  const { user } = useAuth();
+
+  const USER_TRANSACTIONS = getUserTransactionsKey(user.id);
+
   const {
     control,
     handleSubmit,
@@ -93,14 +98,19 @@ export function Register() {
     };
 
     try {
-      const transactionsFromStorage = await AsyncStorage.getItem(TRANSACTIONS);
+      const transactionsFromStorage = await AsyncStorage.getItem(
+        USER_TRANSACTIONS
+      );
       const currentTransactions = transactionsFromStorage
         ? JSON.parse(transactionsFromStorage)
         : [];
 
       const transactions = [...currentTransactions, newTransaction];
 
-      await AsyncStorage.setItem(TRANSACTIONS, JSON.stringify(transactions));
+      await AsyncStorage.setItem(
+        USER_TRANSACTIONS,
+        JSON.stringify(transactions)
+      );
 
       reset();
       setSelectedTransactionType("");

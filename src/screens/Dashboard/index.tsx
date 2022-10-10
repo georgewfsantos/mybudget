@@ -4,6 +4,7 @@ import { ActivityIndicator } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTheme } from "styled-components";
 
 import { BalanceCard } from "../../components/BalanceCard";
 import {
@@ -28,8 +29,8 @@ import {
   LogoutButton,
   LoadingWrapper,
 } from "./styles";
-import { TRANSACTIONS } from "../../utils/storageKeys";
-import { useTheme } from "styled-components";
+import { useAuth } from "../../hooks/auth";
+import { getUserTransactionsKey } from "../../utils/storageKeys";
 
 export type TransactionListItemProps = TransactionCardProps & {
   id: string;
@@ -55,31 +56,41 @@ export function Dashboard() {
     {} as OverAllBalance
   );
 
+  const { signOut, user } = useAuth();
+
   const theme = useTheme();
 
-  function getLastTransactionDate(
-    data: TransactionListItemProps[],
-    transactionType: "credit" | "debit"
-  ) {
-    const lastTransactionDate = new Date(
-      Math.max.apply(
-        Math,
-        data
-          .filter((item) => item.type === transactionType)
-          .map((item) => new Date(item.date).getTime())
-      )
+  const USER_TRANSACTIONS = getUserTransactionsKey(user.id);
+
+  function getLastTransactionDate(transactionType: "credit" | "debit") {
+    const filteredTransactions = transactions?.filter(
+      (item) => item.type === transactionType
     );
 
-    return `${lastTransactionDate.getDate()} de ${lastTransactionDate.toLocaleString(
-      "pt-BR",
-      {
-        month: "long",
-      }
-    )}`;
+    if (filteredTransactions.length > 0) {
+      const lastTransactionDate = new Date(
+        Math.max.apply(
+          Math,
+
+          filteredTransactions.map((item) => new Date(item.date).getTime())
+        )
+      );
+
+      return `${lastTransactionDate.getDate()} de ${lastTransactionDate.toLocaleString(
+        "pt-BR",
+        {
+          month: "long",
+        }
+      )}`;
+    }
+
+    return "no_transactions";
   }
 
   async function loadTransactions() {
-    const transactionsFromStorage = await AsyncStorage.getItem(TRANSACTIONS);
+    const transactionsFromStorage = await AsyncStorage.getItem(
+      USER_TRANSACTIONS
+    );
 
     let totalIncome = 0;
     let totalExpenses = 0;
@@ -119,14 +130,14 @@ export function Dashboard() {
           style: "currency",
           currency: "BRL",
         }),
-        lastTransaction: getLastTransactionDate(transactions, "credit"),
+        lastTransaction: getLastTransactionDate("credit"),
       },
       expenses: {
         total: totalExpenses.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
         }),
-        lastTransaction: getLastTransactionDate(transactions, "debit"),
+        lastTransaction: getLastTransactionDate("debit"),
       },
       total: (totalIncome - totalExpenses).toLocaleString("pt-BR", {
         style: "currency",
@@ -140,7 +151,10 @@ export function Dashboard() {
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [])
+    }, [
+      overAllBalance?.income?.lastTransaction,
+      overAllBalance?.expenses?.lastTransaction,
+    ])
   );
 
   return (
@@ -154,15 +168,13 @@ export function Dashboard() {
           <Header>
             <HeaderContentWrapper>
               <UserInfo>
-                <Avatar
-                  source={{ uri: "https://github.com/georgewfsantos.png" }}
-                />
+                <Avatar source={{ uri: user.avatar }} />
                 <UserInfoTextContent>
                   <Greeting>Olá,</Greeting>
-                  <UserName>Fulano</UserName>
+                  <UserName>{user.name}</UserName>
                 </UserInfoTextContent>
               </UserInfo>
-              <LogoutButton onPress={() => {}}>
+              <LogoutButton onPress={signOut}>
                 <Icon name="power" />
               </LogoutButton>
             </HeaderContentWrapper>
@@ -172,21 +184,33 @@ export function Dashboard() {
               type="credit"
               title="Entradas"
               amount={overAllBalance.income.total}
-              lastTransaction={`Última entrada dia ${overAllBalance.income.lastTransaction}`}
+              lastTransaction={
+                overAllBalance.income.lastTransaction === "no_transactions"
+                  ? "Não há transações registradas."
+                  : `Última entrada dia ${overAllBalance.income.lastTransaction}`
+              }
             />
 
             <BalanceCard
               type="debit"
               title="Saídas"
               amount={overAllBalance.expenses.total}
-              lastTransaction={`Última saída dia ${overAllBalance.expenses.lastTransaction}`}
+              lastTransaction={
+                overAllBalance.expenses.lastTransaction === "no_transactions"
+                  ? "Não há transações registradas"
+                  : `Última saída dia ${overAllBalance.expenses.lastTransaction}`
+              }
             />
 
             <BalanceCard
               type="total"
               title="Total"
               amount={overAllBalance.total}
-              lastTransaction={`01 a ${overAllBalance.expenses.lastTransaction}`}
+              lastTransaction={
+                overAllBalance.expenses.lastTransaction === "no_transactions"
+                  ? "Não há transações registradas"
+                  : `1 a ${overAllBalance.expenses.lastTransaction}`
+              }
             />
           </BalanceCards>
           <Transactions>
